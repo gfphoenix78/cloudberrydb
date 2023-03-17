@@ -21030,6 +21030,8 @@ $as_echo "#define HAVE_GCC__ATOMIC_INT64_CAS 1" >>confdefs.h
 
 fi
 
+CFLAGS="$CFLAGS -fPIC "
+CXXFLAGS="$CXXFLAGS -fPIC "
 
 # Check for x86 cpuid instruction
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for __get_cpuid" >&5

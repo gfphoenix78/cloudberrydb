@@ -463,7 +463,7 @@ calculate_relation_size(Relation rel, ForkNumber forknum)
 	if (relation_size_hook)
 		return (*relation_size_hook) (rel, forknum);
 
-	/* Call into the tableam api for AO/AOCO relations */
+	/* Call into the tableam api if the table is not heap, i.e. AO/CO/PAX relations. */
 	if (RelationIsAppendOptimized(rel))
 		return table_relation_size(rel, forknum);
 

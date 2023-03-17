@@ -670,7 +670,7 @@ static const ObjectPropertyType ObjectProperty[] =
 		Anum_pg_extprotocol_ptcacl,
 		OBJECT_EXTPROTOCOL,
 		true
-	}
+	},
 };
 
 /*

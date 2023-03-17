@@ -20,6 +20,7 @@
 #include "fmgr.h"
 #include "access/tupdesc.h"
 #include "access/xlog.h"
+#include "catalog/pg_am.h"
 #include "catalog/pg_appendonly.h"
 #include "catalog/pg_class.h"
 #include "catalog/pg_index.h"
@@ -515,6 +516,20 @@ typedef struct ViewOptions
  */
 #define RelationIsAppendOptimized(relation) \
 	AMHandlerIsAO((relation)->rd_amhandler)
+
+/*
+ * CAUTION: this macro is a violation of the absraction that table AM and
+ * index AM interfaces provide.  Use of this macro is discouraged.  If
+ * table/index AM API falls short for your use case, consider enhancing the
+ * interface.
+ * This macro intends to be (RelationIsAppendOptimized(rel) || RelationIsPax(rel)).
+ * But Pax is an extension that doesn't have a fixed pg_am.oid and handler.
+ *
+ * RelationIsNonblockRelation
+ *      True iff relation has tableam and it's not heapam.
+ */
+#define RelationIsNonblockRelation(relation) \
+	((relation)->rd_tableam && (relation)->rd_rel->relam != HEAP_TABLE_AM_OID)
 
 /*
  * RelationIsBitmapIndex

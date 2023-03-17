@@ -203,7 +203,7 @@ static const Oid object_classes[] = {
 	ProfileRelationId,		/* OCLASS_PROFILE */
 	PasswordHistoryRelationId,	/* OCLASS_PASSWORDHISTORY */
 	ExtprotocolRelationId,		/* OCLASS_EXTPROTOCOL */
-	TaskRelationId				/* OCLASS_TASK */
+	TaskRelationId,				/* OCLASS_TASK */
 };
 
 

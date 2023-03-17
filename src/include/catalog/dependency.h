@@ -144,7 +144,7 @@ typedef enum ObjectClass
 	OCLASS_PROFILE,                         /* pg_profile */
         OCLASS_PASSWORDHISTORY,                 /* pg_password_history */
 	OCLASS_EXTPROTOCOL,			/* pg_extprotocol */
-	OCLASS_TASK					/* pg_task */
+	OCLASS_TASK,				/* pg_task */
 } ObjectClass;
 
 #define LAST_OCLASS		OCLASS_TASK

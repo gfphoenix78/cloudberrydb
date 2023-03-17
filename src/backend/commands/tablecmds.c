@@ -7138,7 +7138,9 @@ ATRewriteTable(AlteredTableInfo *tab, Oid OIDNewHeap, LOCKMODE lockmode)
 			aoco_dml_init(newrel, CMD_INSERT);
 		}
 		else if (newrel && ext_dml_init_hook)
+		{
 			ext_dml_init_hook(newrel, CMD_INSERT);
+		}
 
 		/*
 		 * Switch to per-tuple memory context and reset it for each tuple
