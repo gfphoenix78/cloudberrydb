@@ -892,6 +892,8 @@ typedef struct TableAmRoutine
 	 */
 	bytea       *(*amoptions)(Datum reloptions, char relkind, bool validate);
 
+	void		(*swap_relation_files) (Oid relid1, Oid relid2, TransactionId frozenXid, MultiXactId cutoffMulti);
+
 } TableAmRoutine;
 
 
