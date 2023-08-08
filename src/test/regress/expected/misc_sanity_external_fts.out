@@ -161,6 +161,7 @@ ORDER BY 1;
  pg_depend
  pg_extprotocol
  pg_password_history
+ pg_pax_tables
  pg_proc_callback
  pg_profile
  pg_resgroup
@@ -172,7 +173,7 @@ ORDER BY 1;
  pg_stat_last_operation
  pg_stat_last_shoperation
  pg_type_encoding
-(25 rows)
+(26 rows)
 
 -- system catalog unique indexes not wrapped in a constraint
 -- (There should be none.)

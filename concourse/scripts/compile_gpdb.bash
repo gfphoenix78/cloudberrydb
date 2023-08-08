@@ -110,6 +110,7 @@ function include_dependencies() {
 	for path in "${library_search_path[@]}"; do if [[ -d "${path}/pkgconfig" ]]; then for pkg in "${pkgconfigs[@]}"; do find -L $path/pkgconfig/ -name $pkg -exec cp -avn '{}' ${GREENPLUM_INSTALL_DIR}/lib/pkgconfig \;; done; fi; done
 
 	download_extra_dependencies
+
 }
 function export_gpdb() {
 	TARBALL="${GPDB_ARTIFACTS_DIR}/${GPDB_BIN_FILENAME}"
@@ -169,7 +170,6 @@ function _main() {
 	fi
 
 	include_dependencies
-
 	export_gpdb
 	export_gpdb_extensions
 

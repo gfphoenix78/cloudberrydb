@@ -40,7 +40,10 @@ function download_etcd() {
         etcd_file_name=etcd-${etcd_version}-linux-arm64
     fi
 
-    tar -xvf /opt/${etcd_file_name}.tar.gz -C /opt
+    etcd_download_url=https://artifactory.hashdata.xyz/artifactory/utility/${etcd_file_name}.tar.gz
+    wget ${etcd_download_url} -O ~/${etcd_file_name}.tar.gz
+
+    tar -xvf ~/${etcd_file_name}.tar.gz -C /opt
     
     mkdir -p ${target_path}
     \cp  /opt/${etcd_file_name}/etcd ${target_path}
@@ -55,7 +58,8 @@ function download_jansson() {
     fi
     jansson_file_name=jansson-${jansson_version}
 
-    tar -xvf /opt/${jansson_file_name}.tar.gz -C /opt
+    wget https://artifactory.hashdata.xyz/artifactory/utility/${jansson_file_name}.tar.gz -O ~/${jansson_file_name}.tar.gz
+    tar -xvf ~/${jansson_file_name}.tar.gz -C /opt
 
     pushd /opt/${jansson_file_name}
     ./configure --prefix=/opt/jansson --disable-static
@@ -76,8 +80,11 @@ function download_java() {
     fi
     java_file_name=jdk-${java_version}-linux-`arch`
 
+    wget http://artifactory.hashdata.xyz/artifactory/development/centos/7/`arch`/${java_file_name}.tar.gz -O ~/${java_file_name}.tar.gz
+
+
     mkdir -p ${target_path}
-    tar -xzf /opt/${java_file_name}.tar.gz -C ${target_path}
+    tar -xzf ~/${java_file_name}.tar.gz -C ${target_path}
     mv ${target_path}/jdk*  ${target_path}/jdk
 }
 
@@ -87,7 +94,7 @@ function download_java() {
 
 function install_gpdb() {
     mkdir -p $INSTALL_DIR
-    tar -xzf /opt/bin_gpdb.tar.gz -C $INSTALL_DIR
+    tar -xzf bin_gpdb/bin_gpdb.tar.gz -C $INSTALL_DIR
 }
 
 function setup_configure_vars() {
