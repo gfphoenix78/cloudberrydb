@@ -768,7 +768,7 @@ alter table aocs_with_compress drop column b;
 alter table aocs_with_compress set with (reorganize=true);
 -- The following operation must not fail
 alter table aocs_with_compress alter column c type integer;
--- test case: alter AOCS table add column, the preference of the storage setting is: the encoding clause > table setting > gp_default_storage_options
+-- test case: alter AOCS table add column, the preference of the storage setting is: the encoding clause > gp_default_storage_options > table setting
 CREATE TABLE aocs_alter_add_col(a int) WITH (appendonly=true, orientation=column, compresstype=rle_type, compresslevel=4, blocksize=65536);
 SET gp_default_storage_options ='compresstype=zlib, compresslevel=2';
 -- use statement encoding 
@@ -784,8 +784,8 @@ ALTER TABLE aocs_alter_add_col ADD COLUMN d int;
 --------+---------+-----------+----------+---------+---------+--------------+------------------+-------------------+------------+-------------
  a      | integer |           |          |         | plain   |              | rle_type         | 4                 | 65536      | 
  b      | integer |           |          |         | plain   |              | zlib             | 3                 | 16384      | 
- c      | integer |           |          |         | plain   |              | rle_type         | 4                 | 65536      | 
- d      | integer |           |          |         | plain   |              | rle_type         | 4                 | 65536      | 
+ c      | integer |           |          |         | plain   |              | zlib             | 2                 | 32768      | 
+ d      | integer |           |          |         | plain   |              | none             | 0                 | 32768      | 
 Checksum: t
 Distributed by: (a)
 Options: compresstype=rle_type, compresslevel=4, blocksize=65536
@@ -806,7 +806,7 @@ ALTER TABLE aocs_alter_add_col_no_compress ADD COLUMN d int;
 --------+---------+-----------+----------+---------+---------+--------------+------------------+-------------------+------------+-------------
  a      | integer |           |          |         | plain   |              | none             | 0                 | 32768      | 
  b      | integer |           |          |         | plain   |              | rle_type         | 3                 | 16384      | 
- c      | integer |           |          |         | plain   |              | zlib             | 2                 | 32768      | 
+ c      | integer |           |          |         | plain   |              | zlib             | 2                 | 8192       | 
  d      | integer |           |          |         | plain   |              | none             | 0                 | 32768      | 
 Checksum: t
 Distributed by: (a)

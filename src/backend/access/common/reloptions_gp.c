@@ -1307,10 +1307,15 @@ encodings_overlap(List *a, List *b)
  * 2. Ensure that each column is referenced either zero times or once.
  * 3. Ensure that the column reference storage clauses do not clash with the
  * 	  gp_default_storage_options
+ * 
+ * Must pass a validate callback.
+ * 1. Caller need validate RELKIND_RELATION that should pass the callback in access method if exist
+ * 2. Caller need validate RELKIND_PARTITIONED_TABLE that will only happend in aoco
  */
 static void
 validateColumnStorageEncodingClauses(List *aocoColumnEncoding,
-									 List *tableElts)
+									List *tableElts,
+									void (*validate_func) (List *))
 {
 	ListCell *lc;
 	struct HTAB *ht = NULL;
@@ -1420,25 +1425,8 @@ validateColumnStorageEncodingClauses(List *aocoColumnEncoding,
 
 	hash_destroy(ht);
 
-	foreach(lc, aocoColumnEncoding)
-	{
-		ColumnReferenceStorageDirective *crsd = lfirst(lc);
-
-		Datum d = transformRelOptions(PointerGetDatum(NULL),
-									  crsd->encoding,
-									  NULL, NULL,
-									  true, false);
-		StdRdOptions *stdRdOptions = (StdRdOptions *)default_reloptions(d,
-																	true,
-																	RELOPT_KIND_APPENDOPTIMIZED);
-
-		validateAppendOnlyRelOptions(stdRdOptions->blocksize,
-									 gp_safefswritesize,
-									 stdRdOptions->compresslevel,
-									 stdRdOptions->compresstype,
-									 stdRdOptions->checksum,
-									 true);
-	}
+	Assert(validate_func);
+	validate_func(aocoColumnEncoding);
 }
 
 /*
@@ -1580,14 +1568,24 @@ find_crsd(const char *column, List *stenc)
  * This needs access to possible inherited columns, so it can only be done after
  * expanding them.
  */
-List* transformColumnEncoding(Relation rel, List *colDefs, List *stenc, List *withOptions, bool rootpartition, bool errorOnEncodingClause)
+List* transformColumnEncoding(const TableAmRoutine *tam, Relation rel, List *colDefs, List *stenc, List *withOptions, bool errorOnEncodingClause, bool createDefaultOne)
 {
 	ColumnReferenceStorageDirective *deflt = NULL;
 	ListCell   *lc;
 	List	   *result = NIL;
 
-	if (stenc)
-		validateColumnStorageEncodingClauses(stenc, colDefs);
+	if (stenc) {
+		if (errorOnEncodingClause)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("ENCODING clause only supported with column oriented tables")));
+		/*
+		 * if no `tam` or no encoding callback in am
+		 * then `errorOnEncodingClause` will be true
+		 */
+		validateColumnStorageEncodingClauses(stenc, colDefs, tam->validate_column_encoding_clauses);
+	}
+		
 
 	/* get the default clause, if there is one. */
 	foreach(lc, stenc)
@@ -1609,7 +1607,8 @@ List* transformColumnEncoding(Relation rel, List *colDefs, List *stenc, List *wi
 				elog(ERROR, "only one default column encoding may be specified");
 
 			deflt = copyObject(c);
-			deflt->encoding = transformStorageEncodingClause(deflt->encoding, true);
+
+			deflt->encoding = tam->transform_column_encoding_clauses(deflt->encoding, true, false);
 
 			/*
 			 * The default encoding and the with clause better not
@@ -1620,7 +1619,6 @@ List* transformColumnEncoding(Relation rel, List *colDefs, List *stenc, List *wi
 						(errcode(ERRCODE_INVALID_TABLE_DEFINITION),
 						 errmsg("DEFAULT COLUMN ENCODING clause cannot override values set in WITH clause")));
 		}
-
 	}
 
 	/*
@@ -1634,7 +1632,15 @@ List* transformColumnEncoding(Relation rel, List *colDefs, List *stenc, List *wi
 		{
 			deflt = makeNode(ColumnReferenceStorageDirective);
 			deflt->deflt = true;
-			deflt->encoding = transformStorageEncodingClause(tmpenc, false);
+
+			Assert(tam);
+			/*
+			 * if current am not inmplement transform_column_encoding_clauses
+			 * then tmpenc not null but no need fill with options.
+			 */
+			if (tam->transform_column_encoding_clauses) {
+				deflt->encoding = tam->transform_column_encoding_clauses(tmpenc, false, false);
+			}
 		}
 	}
 
@@ -1659,6 +1665,111 @@ List* transformColumnEncoding(Relation rel, List *colDefs, List *stenc, List *wi
 		 */
 		if (d->encoding)
 		{
+			if (errorOnEncodingClause)
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg("ENCODING clause only supported with column oriented tables")));
+
+			encoding = tam->transform_column_encoding_clauses(d->encoding, true, false);
+		}
+		else
+		{
+			ColumnReferenceStorageDirective *s = find_crsd(d->colname, stenc);
+
+			if (s) {
+				Assert(tam);
+				encoding = tam->transform_column_encoding_clauses(s->encoding, true, false);
+			} else {
+				if (deflt)
+					encoding = copyObject(deflt->encoding);
+				else
+				{
+					if (d->typeName) {
+						/* get encoding by type, still need do transform and validate */
+						encoding = get_type_encoding(d->typeName);
+						if (tam && tam->transform_column_encoding_clauses)
+							encoding = tam->transform_column_encoding_clauses(encoding, true, true);
+					}
+					if (!encoding && createDefaultOne) {
+						Assert(tam == GetTableAmRoutineByAmId(rel->rd_rel->relam));
+						encoding = default_column_encoding_clause(rel);
+					}
+				}
+			}
+		}
+
+		if (encoding)
+		{
+			c = makeNode(ColumnReferenceStorageDirective);
+			c->column = pstrdup(d->colname);
+			c->encoding = encoding;
+
+			result = lappend(result, c);
+		}
+	}
+
+	return result;
+}
+
+List* transfromColumnEncodingAocoRootPartition(List *colDefs, List *stenc, List *withOptions, bool errorOnEncodingClause)
+{
+	ColumnReferenceStorageDirective *deflt = NULL;
+	ListCell   *lc;
+	List	   *result = NIL;
+
+	if (stenc) {
+		validateColumnStorageEncodingClauses(stenc, colDefs, validateAOCOColumnEncodingClauses);
+	}
+
+	/* get the default clause, if there is one. */
+	foreach(lc, stenc)
+	{
+		ColumnReferenceStorageDirective *c = lfirst(lc);
+		Assert(IsA(c, ColumnReferenceStorageDirective));
+
+		if (errorOnEncodingClause)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("ENCODING clause only supported with column oriented tables")));
+		if (c->deflt)
+		{
+			if (deflt)
+				elog(ERROR, "only one default column encoding may be specified");
+
+			deflt = copyObject(c);
+			deflt->encoding = transformStorageEncodingClause(deflt->encoding, true);
+
+			if (encodings_overlap(withOptions, deflt->encoding))
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_TABLE_DEFINITION),
+						 errmsg("DEFAULT COLUMN ENCODING clause cannot override values set in WITH clause")));
+		}
+	}
+
+	if (!deflt)
+	{
+		List	   *tmpenc;
+		if ((tmpenc = form_default_storage_directive(withOptions)) != NULL)
+		{
+			deflt = makeNode(ColumnReferenceStorageDirective);
+			deflt->deflt = true;
+			deflt->encoding = transformStorageEncodingClause(tmpenc, false);
+		}
+	}
+
+	foreach(lc, colDefs)
+	{
+		Node	   *elem = (Node *) lfirst(lc);
+		ColumnDef *d;
+		ColumnReferenceStorageDirective *c;
+		List *encoding = NIL;
+
+		Assert(IsA(elem, ColumnDef));
+
+		d = (ColumnDef *) elem;
+
+		if (d->encoding)
+		{
 			encoding = transformStorageEncodingClause(d->encoding, true);
 			if (errorOnEncodingClause)
 				ereport(ERROR,
@@ -1675,13 +1786,6 @@ List* transformColumnEncoding(Relation rel, List *colDefs, List *stenc, List *wi
 			{
 				if (deflt)
 					encoding = copyObject(deflt->encoding);
-				else if (!rootpartition)
-				{
-					if (d->typeName)
-						encoding = get_type_encoding(d->typeName);
-					if (!encoding)
-						encoding = default_column_encoding_clause(rel);
-				}
 			}
 		}
 
@@ -1696,6 +1800,32 @@ List* transformColumnEncoding(Relation rel, List *colDefs, List *stenc, List *wi
 	}
 
 	return result;
+}
+
+
+void
+validateAOCOColumnEncodingClauses(List *aocoColumnEncoding)
+{
+	ListCell *lc;
+	foreach(lc, aocoColumnEncoding)
+	{
+		ColumnReferenceStorageDirective *crsd = lfirst(lc);
+
+		Datum d = transformRelOptions(PointerGetDatum(NULL),
+									  crsd->encoding,
+									  NULL, NULL,
+									  true, false);
+		StdRdOptions *stdRdOptions = (StdRdOptions *)default_reloptions(d,
+																	true,
+																	RELOPT_KIND_APPENDOPTIMIZED);
+
+		validateAppendOnlyRelOptions(stdRdOptions->blocksize,
+									 gp_safefswritesize,
+									 stdRdOptions->compresslevel,
+									 stdRdOptions->compresstype,
+									 stdRdOptions->checksum,
+									 true);
+	}
 }
 
 bytea *

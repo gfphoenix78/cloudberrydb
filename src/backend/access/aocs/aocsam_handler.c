@@ -2189,6 +2189,18 @@ aoco_swap_relation_files(Oid relid1, Oid relid2,
 	SwapAppendonlyEntries(relid1, relid2);
 }
 
+static void aoco_validate_column_encoding_clauses(List *aocoColumnEncoding)
+{
+	validateAOCOColumnEncodingClauses(aocoColumnEncoding);
+}
+
+static List * 
+aoco_transform_column_encoding_clauses(List *aocoColumnEncoding, 
+									   bool validate,
+									   bool optionFromType pg_attribute_unused()) {
+	return transformStorageEncodingClause(aocoColumnEncoding, validate);
+}
+
 /* ------------------------------------------------------------------------
  * Definition of the AO_COLUMN table access method.
  *
@@ -2267,6 +2279,8 @@ static TableAmRoutine ao_column_methods = {
 
 	.amoptions = ao_amoptions,
 	.swap_relation_files = aoco_swap_relation_files,
+	.validate_column_encoding_clauses = aoco_validate_column_encoding_clauses,
+	.transform_column_encoding_clauses = aoco_transform_column_encoding_clauses,
 };
 
 Datum

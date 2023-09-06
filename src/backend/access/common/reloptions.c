@@ -1913,7 +1913,7 @@ default_reloptions(Datum reloptions, bool validate, relopt_kind kind)
  * case the values contained in it must already be valid.
  *
  * NULL is returned if the passed-in options did not match any of the options
- * in the parsing table, unless validate is true in which case an error would
+* in the parsing table, unless validate is true in which case an error would
  * be reported.
  */
 void *

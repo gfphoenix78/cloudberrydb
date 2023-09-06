@@ -2322,6 +2322,13 @@ appendonly_swap_relation_files(Oid relid1, Oid relid2,
 	SwapAppendonlyEntries(relid1, relid2);
 }
 
+static List * 
+appendonly_transform_column_encoding_clauses(List *aocoColumnEncoding, 
+											 bool validate, 
+											 bool optionFromType pg_attribute_unused()) {
+	return transformStorageEncodingClause(aocoColumnEncoding, validate);
+}
+
 /* ------------------------------------------------------------------------
  * Definition of the appendonly table access method.
  *
@@ -2394,6 +2401,8 @@ static const TableAmRoutine ao_row_methods = {
 
 	.amoptions = ao_amoptions,
 	.swap_relation_files = appendonly_swap_relation_files,
+
+	.transform_column_encoding_clauses = appendonly_transform_column_encoding_clauses,
 };
 
 Datum

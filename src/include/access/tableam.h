@@ -894,6 +894,10 @@ typedef struct TableAmRoutine
 
 	void		(*swap_relation_files) (Oid relid1, Oid relid2, TransactionId frozenXid, MultiXactId cutoffMulti);
 
+	void		(*validate_column_encoding_clauses) (List *encoding_clause_opts);
+
+	List *		(*transform_column_encoding_clauses) (List *encoding_opts, bool validate, bool optionFromType);
+
 } TableAmRoutine;
 
 

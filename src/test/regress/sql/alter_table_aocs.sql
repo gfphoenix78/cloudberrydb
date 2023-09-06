@@ -442,7 +442,7 @@ alter table aocs_with_compress set with (reorganize=true);
 -- The following operation must not fail
 alter table aocs_with_compress alter column c type integer;
 
--- test case: alter AOCS table add column, the preference of the storage setting is: the encoding clause > table setting > gp_default_storage_options
+-- test case: alter AOCS table add column, the preference of the storage setting is: the encoding clause > gp_default_storage_options > table setting
 CREATE TABLE aocs_alter_add_col(a int) WITH (appendonly=true, orientation=column, compresstype=rle_type, compresslevel=4, blocksize=65536);
 SET gp_default_storage_options ='compresstype=zlib, compresslevel=2';
 -- use statement encoding 
