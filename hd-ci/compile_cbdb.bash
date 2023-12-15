@@ -146,7 +146,7 @@ main() {
 	mv cbdb-artifacts.txt ${gpdb_dir_name}
 	popd
 
-	# release_rpm_external_fts $1
+	release_rpm_external_fts $1
 }
 
 main $1

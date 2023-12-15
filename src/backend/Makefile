@@ -33,6 +33,11 @@ SUBDIRS += catalog-extension
 LDFLAGS += -lprotobuf -lstdc++
 endif
 
+USE_INTERNAL_FTS_FOUND := $(if $(findstring USE_INTERNAL_FTS,$(CFLAGS)),true,false)
+ifeq ($(USE_INTERNAL_FTS_FOUND), false)
+SUBDIRS += utils/etcd_lib
+endif
+
 include $(srcdir)/common.mk
 
 # As of 1/2010:
