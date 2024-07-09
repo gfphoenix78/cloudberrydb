@@ -1,10 +1,11 @@
 name: Try build from source
 on:
   workflow_dispatch:
+  push:
   pull_request:
     types: [ opened, synchronize, reopened, ready_for_review ]
     branches:
-      - main
+      - test-ci
 
 jobs:
   build:
