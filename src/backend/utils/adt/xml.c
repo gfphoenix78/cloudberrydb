@@ -121,7 +121,12 @@ struct PgXmlErrorContext
 
 static xmlParserInputPtr xmlPgEntityLoader(const char *URL, const char *ID,
 										   xmlParserCtxtPtr ctxt);
-static void xml_errorHandler(void *data, xmlErrorPtr error);
+#if LIBXML_VERSION >= 21200
+#define XML_ERROR_PTR_ARG  const xmlError *
+#else
+#define XML_ERROR_PTR_ARG xmlErrorPtr
+#endif
+static void xml_errorHandler(void *data, XML_ERROR_PTR_ARG error);
 static void xml_ereport_by_code(int level, int sqlcode,
 								const char *msg, int errcode);
 static void chopStringInfoNewlines(StringInfo str);
@@ -1762,7 +1767,7 @@ xml_ereport(PgXmlErrorContext *errcxt, int level, int sqlcode, const char *msg)
  * Error handler for libxml errors and warnings
  */
 static void
-xml_errorHandler(void *data, xmlErrorPtr error)
+xml_errorHandler(void *data, XML_ERROR_PTR_ARG error)
 {
 	PgXmlErrorContext *xmlerrcxt = (PgXmlErrorContext *) data;
 	xmlParserCtxtPtr ctxt = (xmlParserCtxtPtr) error->ctxt;
