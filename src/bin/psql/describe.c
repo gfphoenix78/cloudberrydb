@@ -2287,8 +2287,10 @@ describeOneTableDetails(const char *schemaname,
 		goto error_return;		/* not an error, just return early */
 	}
 
-	if (greenplum_is_ao_column(tableinfo.relstorage, tableinfo.relam)
-			|| greenplum_is_ao_row(tableinfo.relstorage, tableinfo.relam))
+	/* if AO reloptions are specified for table, replace the default reloptions */
+	if (tableinfo.relkind != RELKIND_PARTITIONED_TABLE &&
+		(greenplum_is_ao_column(tableinfo.relstorage, tableinfo.relam)
+			|| greenplum_is_ao_row(tableinfo.relstorage, tableinfo.relam)))
 	{
 		PGresult *result = NULL;
 		/* Get Append Only information
