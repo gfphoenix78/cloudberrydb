@@ -5,16 +5,28 @@ description: "How to configure, compile, run, and test Cloudberry Database (CBDB
 
 # Cloudberry Database: Build, Run & Test Guide
 
-This skill covers the full developer workflow for Cloudberry Database — from configuring the build to running tests against a live cluster. The source tree lives at `/home/gpadmin/workspace/cbdb`.
+This skill covers the full developer workflow for Cloudberry Database — from configuring the build to running tests against a live cluster. **All commands assume you are running Claude from the Cloudberry project root directory.**
+
+## Install Prefix Selection
+
+When choosing `--prefix` for `./configure`, try the following paths **in order**. Use `mkdir -p` to test; if it fails (e.g., permission denied), try the next one:
+
+```
+INSTALL_PREFIX candidates (in priority order):
+  1. /usr/local/cloudberry-db-devel
+  2. ~/cbdb.bin
+```
+
+Throughout this document, `$INSTALL_PREFIX` refers to whichever path was successfully created.
 
 ## Quick Reference
 
 | Step | Command |
 |------|---------|
-| Configure | `cd ~/workspace/cbdb && ./configure ...` |
+| Configure | `./configure --prefix=$INSTALL_PREFIX ...` |
 | Build | `make -j$(nproc)` |
 | Install | `make install` |
-| Environment | `source ~/cloudberry-db-devel/cloudberry-env.sh` |
+| Environment | `source $INSTALL_PREFIX/cloudberry-env.sh` |
 | Create cluster | `make create-demo-cluster` |
 | Start cluster | `source gpAux/gpdemo/gpdemo-env.sh && gpstart -a` |
 | Stop cluster | `gpstop -a -M fast` |
@@ -24,12 +36,10 @@ This skill covers the full developer workflow for Cloudberry Database — from c
 
 ## Step 1: Configure
 
-The project uses autoconf. Run `./configure` from the source root with the flags appropriate for development:
+The project uses autoconf. Run `./configure` from the project root with the flags appropriate for development:
 
 ```bash
-cd ~/workspace/cbdb
-
-./configure --prefix=/home/gpadmin/cloudberry-db-devel \
+./configure --prefix=$INSTALL_PREFIX \
     --enable-debug \
     --enable-cassert \
     --enable-depend \
@@ -47,7 +57,7 @@ cd ~/workspace/cbdb
     --with-pythonsrc-ext
 ```
 
-**Important**: `--prefix` must use an absolute path (e.g., `/home/gpadmin/cloudberry-db-devel`). Do NOT use `$HOME` — it may not be expanded by configure and result in installing to `/cloudberry-db-devel` (permission denied).
+**Important**: `--prefix` must use an absolute path. Do NOT use unexpanded `$HOME` — it may not be expanded by configure and result in installing to a wrong location. Use the fully resolved path (e.g., `/usr/local/cloudberry-db-devel` or `/home/gpadmin/cbdb.bin`).
 
 **Flag explanations:**
 - `--enable-debug` — Include debug symbols (`-g`), essential for gdb debugging
@@ -72,7 +82,6 @@ cd ~/workspace/cbdb
 ## Step 2: Build
 
 ```bash
-cd ~/workspace/cbdb
 make -j$(nproc)
 ```
 
@@ -98,7 +107,7 @@ make -C contrib/pg_stat_statements -j$(nproc)
 make install
 ```
 
-This installs binaries, libraries, and headers to the `--prefix` directory (`~/cloudberry-db-devel`).
+This installs binaries, libraries, and headers to the `--prefix` directory (`$INSTALL_PREFIX`).
 
 For contrib and gpcontrib extensions:
 
@@ -114,7 +123,7 @@ make -C gpcontrib install
 Source the environment script so shell tools (`psql`, `gpstart`, etc.) are on your PATH:
 
 ```bash
-source ~/cloudberry-db-devel/cloudberry-env.sh
+source $INSTALL_PREFIX/cloudberry-env.sh
 ```
 
 This sets `GPHOME`, `PATH`, `LD_LIBRARY_PATH`, and `PYTHONPATH`.
@@ -122,8 +131,9 @@ This sets `GPHOME`, `PATH`, `LD_LIBRARY_PATH`, and `PYTHONPATH`.
 Add this to your `~/.bashrc` if you want it loaded automatically:
 
 ```bash
-echo 'source ~/cloudberry-db-devel/cloudberry-env.sh' >> ~/.bashrc
+echo "source $INSTALL_PREFIX/cloudberry-env.sh" >> ~/.bashrc
 ```
+<!-- comment: 不要将数据库相关的环境变量混入默认的环境变量，可能造成环境变量污染，系统可能需要同时运行多个数据库实例。建议将需要设置的环境变量添加到类似.cloudberry.env的文件中，在需要使用前，source这个文件来生效 -->
 
 ---
 
@@ -136,7 +146,6 @@ The demo cluster creates a single-host cluster with a coordinator and several se
 - `ping` has the correct permissions (in containers, you may need `sudo chmod u+s /usr/sbin/ping` or `sudo setcap cap_net_raw+ep /usr/sbin/ping`)
 
 ```bash
-cd ~/workspace/cbdb
 make create-demo-cluster
 ```
 
@@ -163,7 +172,7 @@ NUM_PRIMARY_MIRROR_PAIRS=0 make create-demo-cluster
 After creation, source the demo environment:
 
 ```bash
-source ~/workspace/cbdb/gpAux/gpdemo/gpdemo-env.sh
+source gpAux/gpdemo/gpdemo-env.sh
 ```
 
 This sets `COORDINATOR_DATA_DIRECTORY` and `PGPORT` so tools know where to connect.
@@ -215,16 +224,14 @@ make CFLAGS=-DUNITTEST unittest-check
 ### Isolation tests
 
 ```bash
-cd src/test/isolation2
-make installcheck
+make -C src/test/isolation2 installcheck
 ```
 
 ### Specific test files
 
 ```bash
 # Run a single regression test
-cd src/test/regress
-make installcheck EXTRA_TESTS=your_test_name
+make -C src/test/regress installcheck EXTRA_TESTS=your_test_name
 ```
 
 ### Interpreting test results
@@ -245,7 +252,7 @@ make destroy-demo-cluster
 
 # Recreate from scratch
 make create-demo-cluster
-source ~/workspace/cbdb/gpAux/gpdemo/gpdemo-env.sh
+source gpAux/gpdemo/gpdemo-env.sh
 ```
 
 ---
@@ -269,10 +276,8 @@ source ~/workspace/cbdb/gpAux/gpdemo/gpdemo-env.sh
 When you need a completely clean build (e.g., after pulling major changes):
 
 ```bash
-cd ~/workspace/cbdb
-
 # Stop cluster if running
-source ~/cloudberry-db-devel/cloudberry-env.sh
+source $INSTALL_PREFIX/cloudberry-env.sh
 source gpAux/gpdemo/gpdemo-env.sh
 gpstop -a -M fast 2>/dev/null
 
@@ -283,7 +288,7 @@ make destroy-demo-cluster 2>/dev/null
 make distclean
 
 # Reconfigure, build, install, create cluster
-./configure --prefix=/home/gpadmin/cloudberry-db-devel \
+./configure --prefix=$INSTALL_PREFIX \
     --enable-debug --enable-cassert --enable-depend \
     --with-lz4 --with-gssapi \
     --enable-orafce --enable-ic-proxy --enable-orca \
@@ -292,7 +297,7 @@ make distclean
 
 make -j$(nproc)
 make install
-source ~/cloudberry-db-devel/cloudberry-env.sh
+source $INSTALL_PREFIX/cloudberry-env.sh
 make create-demo-cluster
 source gpAux/gpdemo/gpdemo-env.sh
 gpstart -a
@@ -305,9 +310,9 @@ gpstate
 
 | Path | Description |
 |------|-------------|
-| `~/workspace/cbdb` | Source tree |
-| `~/cloudberry-db-devel` | Install directory |
-| `~/cloudberry-db-devel/cloudberry-env.sh` | Environment setup |
+| `.` (project root) | Source tree (Claude's working directory) |
+| `$INSTALL_PREFIX` | Install directory (see prefix selection above) |
+| `$INSTALL_PREFIX/cloudberry-env.sh` | Environment setup |
 | `gpAux/gpdemo/gpdemo-env.sh` | Demo cluster environment |
 | `gpAux/gpdemo/datadirs/` | Demo cluster data files |
 | `gpMgmt/doc/gpconfigs/` | Config file templates |
