@@ -498,7 +498,7 @@ void TableReader::OpenFile() {
 
   // load visibility map
   std::string visibility_bitmap_file = it.GetVisibilityBitmapFile();
-  if (!visibility_bitmap_file.empty()) {
+  if (!gp_select_invisible && !visibility_bitmap_file.empty()) {
     auto file = file_system_->Open(visibility_bitmap_file, fs::kReadMode);
     auto file_length = file->FileLength();
     auto bm = std::make_shared<Bitmap8>(file_length * 8);

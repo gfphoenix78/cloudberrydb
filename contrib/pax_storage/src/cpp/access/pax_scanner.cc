@@ -120,9 +120,14 @@ PaxIndexScanDesc::~PaxIndexScanDesc() {}
 bool PaxIndexScanDesc::FetchTuple(ItemPointer tid, Snapshot snapshot,
                                   TupleTableSlot *slot, bool *call_again,
                                   bool *all_dead) {
+  Snapshot meta_snapshot = snapshot;
   BlockNumber block = pax::GetBlockNumber(*tid);
+
+  if (snapshot && snapshot->snapshot_type == SNAPSHOT_ANY) {
+    meta_snapshot = GetCatalogSnapshot(InvalidOid);
+  }
   if (block != current_block_ || !reader_) {
-    if (!OpenMicroPartition(block, snapshot)) return false;
+    if (!OpenMicroPartition(block, meta_snapshot)) return false;
   }
 
   Assert(current_block_ == block && reader_);
@@ -131,7 +136,7 @@ bool PaxIndexScanDesc::FetchTuple(ItemPointer tid, Snapshot snapshot,
 
   try {
     ExecClearTuple(slot);
-    if (CheckExists(GetRelation(), tid, snapshot, all_dead) &&
+    if (CheckExists(GetRelation(), tid, meta_snapshot, all_dead) &&
         reader_->GetTuple(slot, pax::GetTupleOffset(*tid))) {
       SetBlockNumber(&slot->tts_tid, block);
       ExecStoreVirtualTuple(slot);
