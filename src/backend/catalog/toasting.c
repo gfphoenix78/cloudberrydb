@@ -167,11 +167,16 @@ create_toast_table(Relation rel, Oid toastOid, Oid toastIndexOid,
 	/*
 	 * Toast tables for regular relations go in pg_toast; those for temp
 	 * relations go into the per-backend temp-toast-table namespace.
+	 *
+	 * PAX aux tables (pg_pax_blocks_<oid> in catalog mode) live in the
+	 * pg_ext_aux namespace and used to put their TOAST companion in
+	 * pg_ext_aux too, but that was inconsistent with how every other
+	 * Cloudberry / Postgres relation handles toasting.  Treat pg_ext_aux
+	 * parents the same as any other regular schema — their TOAST lands
+	 * in pg_toast.
 	 */
 	if (isTempOrTempToastNamespace(rel->rd_rel->relnamespace))
 		namespaceid = GetTempToastNamespace();
-	else if (IsExtAuxNamespace(rel->rd_rel->relnamespace))
-		namespaceid = PG_EXTAUX_NAMESPACE;
 	else
 		namespaceid = PG_TOAST_NAMESPACE;
 
